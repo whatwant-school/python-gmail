@@ -80,19 +80,19 @@ $env:GMAIL_APP_PASSWORD="your-16-character-app-password"
 GMAIL_SENDER_EMAIL="your-email@gmail.com" \
 GMAIL_RECEIVER_EMAIL="receiver@example.com" \
 GMAIL_APP_PASSWORD="your-app-password" \
-python3 python-gmail.py
+python3 python_gmail.py
 ```
 
 ### 5. 실행 및 확인
 
 #### uv 사용시 (추천)
 ```bash
-uv run python-gmail.py
+uv run python_gmail.py
 ```
 
 #### 일반 Python 사용시
 ```bash
-python3 python-gmail.py
+python3 python_gmail.py
 ```
 
 ### 보안 주의사항
