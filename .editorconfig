@@ -1,0 +1,37 @@
+# EditorConfig 설정 - 현재 코드 스타일 기준
+# https://editorconfig.org/
+
+root = true
+
+# 모든 파일
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Python 파일 (현재 코드 스타일 반영)
+[*.py]
+indent_style = space
+indent_size = 4
+max_line_length = 88
+
+# Markdown 파일
+[*.{md,markdown}]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+# 설정 파일들
+[*.{json,yaml,yml,toml}]
+indent_style = space
+indent_size = 2
+
+# Shell 스크립트
+[*.{sh,bash}]
+indent_style = space
+indent_size = 2
+
+# Makefile은 탭 사용
+[Makefile]
+indent_style = tab
