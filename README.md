@@ -92,30 +92,46 @@ python3 python_gmail.py
 
 실행 시, 이메일 본문에 네트워크 정보와 날씨 정보가 자동으로 포함됩니다.
 
+
 ## 테스트 코드 실행
+
+### 모든 테스트 실행 (권장)
+```bash
 uv run pytest tests/
-### uv로 테스트 실행 (권장)
-```bash
-uv run pytest test_python_gmail.py
-```
-pytest tests/
-### 일반 Python 환경에서 테스트 실행
-```bash
-테스트 파일은 `tests/` 폴더에 있습니다. pytest가 설치되어 있어야 하며, 개발 환경에서는 `uv sync --dev`로 자동 설치됩니다.
 ```
 
-테스트 파일은 `test_python_gmail.py` 입니다. pytest가 설치되어 있어야 하며, 개발 환경에서는 `uv sync --dev`로 자동 설치됩니다.
+### 특정 테스트 파일만 실행
+```bash
+uv run pytest tests/test_python_gmail.py
+uv run pytest tests/test_network_utils.py
+uv run pytest tests/test_weather_utils.py
+```
+
+### 일반 Python 환경에서 테스트 실행
+```bash
+pytest tests/
+pytest tests/test_python_gmail.py
+pytest tests/test_network_utils.py
+pytest tests/test_weather_utils.py
+```
+
+테스트 파일은 `tests/` 폴더에 있습니다. pytest가 설치되어 있어야 하며, 개발 환경에서는 `uv sync --dev`로 자동 설치됩니다.
 
 자세한 환경 변수 설정 방법은 [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)를 참고하세요.
 
 ## 개발
 
+
 ### 주요 모듈 구조
 
 - `python_gmail.py` : 메인 실행 파일 (이메일 전송, 네트워크/날씨 정보 포함)
-- `module/network_utils.py` : 네트워크(IP) 정보 조회 및 포맷팅 유틸리티
-- `module/weather_utils.py` : 주소 기반 날씨 정보 조회 및 포맷팅 유틸리티
-- `test_python_gmail.py` : 주요 기능 단위 테스트
+- `module/` : 주요 유틸리티 모듈 폴더
+   - `network_utils.py` : 네트워크(IP) 정보 조회 및 포맷팅 함수 제공
+   - `weather_utils.py` : 주소 기반 날씨 정보 조회 및 포맷팅 함수 제공
+- `tests/` : 단위 테스트 폴더
+   - `test_python_gmail.py` : 메인 기능(이메일 전송 등) 테스트
+   - `test_network_utils.py` : 네트워크 유틸리티 함수 테스트
+   - `test_weather_utils.py` : 날씨 유틸리티 함수 테스트
 
 ### 코딩 스타일
 
