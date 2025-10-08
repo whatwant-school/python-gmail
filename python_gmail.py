@@ -64,8 +64,8 @@ if __name__ == "__main__":
     # IP 정보 가져오기
     ip_info = get_ip_info()
 
-    # 날씨 정보 가져오기
-    weather_address = "화성시 동탄"
+    # 날씨 정보 가져오기 (환경 변수에서 주소를 읽고, 없으면 기본값 사용)
+    weather_address = os.getenv("WEATHER_ADDRESS", "화성시 동탄")
     weather_info = get_weather_by_address(weather_address)
 
     subject = "This is a lucky email with IP & Weather Info"

@@ -36,13 +36,14 @@ Send email via Gmail SMTP with Python
 3. 환경 변수 설정:
    > **참고:** `.env.example` 파일이 없다면 아래와 같이 직접 생성하세요.
    > ```env
-   > GMAIL_SENDER_EMAIL=your-email@gmail.com
-   > GMAIL_RECEIVER_EMAIL=receiver@example.com
-   > GMAIL_APP_PASSWORD=your_app_password
+   > GMAIL_SENDER_EMAIL="your-email@gmail.com"
+   > GMAIL_RECEIVER_EMAIL="receiver@example.com"
+   > GMAIL_APP_PASSWORD="your_app_password"
+   > WEATHER_ADDRESS="화성시 동탄"  # (선택) 날씨 정보에 사용할 주소, 미설정시 기본값 사용
    > ```
    ```bash
    cp .env.example .env
-   # .env 파일을 실제 Gmail 계정 정보로 수정
+   # .env 파일을 실제 Gmail 계정 정보와 원하는 날씨 주소로 수정
    ```
 
 ### pip 사용
@@ -91,6 +92,7 @@ python3 python_gmail.py
 ```
 
 실행 시, 이메일 본문에 네트워크 정보와 날씨 정보가 자동으로 포함됩니다.
+날씨 정보의 주소는 환경 변수 `WEATHER_ADDRESS`로 지정할 수 있으며, 미설정시 기본값(화성시 동탄)이 사용됩니다.
 
 
 ## 테스트 코드 실행

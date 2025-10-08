@@ -39,9 +39,10 @@
 
 2. `.env` 파일을 실제 정보로 수정:
    ```env
-   GMAIL_SENDER_EMAIL=your-email@gmail.com
-   GMAIL_RECEIVER_EMAIL=receiver@example.com
-   GMAIL_APP_PASSWORD=abcdefghijklmnop
+   GMAIL_SENDER_EMAIL="your-email@gmail.com"
+   GMAIL_RECEIVER_EMAIL="receiver@example.com"
+   GMAIL_APP_PASSWORD="abcdefghijklmnop"
+   WEATHER_ADDRESS="화성시 동탄"  # (선택) 날씨 정보에 사용할 주소, 미설정시 기본값 사용
    ```
 
 3. python-dotenv 라이브러리 설치:
@@ -53,25 +54,31 @@
 
 #### 방법 2: 직접 환경 변수 설정
 
+
 **Linux/macOS/WSL:**
 ```bash
 export GMAIL_SENDER_EMAIL="your-email@gmail.com"
 export GMAIL_RECEIVER_EMAIL="receiver@example.com"
 export GMAIL_APP_PASSWORD="your-16-character-app-password"
+export WEATHER_ADDRESS="화성시 동탄"  # (선택)
 ```
+
 
 **Windows CMD:**
 ```cmd
-set GMAIL_SENDER_EMAIL=your-email@gmail.com
-set GMAIL_RECEIVER_EMAIL=receiver@example.com
-set GMAIL_APP_PASSWORD=your-16-character-app-password
+set GMAIL_SENDER_EMAIL="your-email@gmail.com"
+set GMAIL_RECEIVER_EMAIL="receiver@example.com"
+set GMAIL_APP_PASSWORD="your-16-character-app-password"
+set WEATHER_ADDRESS="화성시 동탄"  # (선택)
 ```
+
 
 **Windows PowerShell:**
 ```powershell
 $env:GMAIL_SENDER_EMAIL="your-email@gmail.com"
 $env:GMAIL_RECEIVER_EMAIL="receiver@example.com"
 $env:GMAIL_APP_PASSWORD="your-16-character-app-password"
+$env:WEATHER_ADDRESS="화성시 동탄"  # (선택)
 ```
 
 #### 방법 3: 실행 시 환경 변수 지정
@@ -80,6 +87,7 @@ $env:GMAIL_APP_PASSWORD="your-16-character-app-password"
 GMAIL_SENDER_EMAIL="your-email@gmail.com" \
 GMAIL_RECEIVER_EMAIL="receiver@example.com" \
 GMAIL_APP_PASSWORD="your-app-password" \
+WEATHER_ADDRESS="화성시 동탄" \
 python3 python_gmail.py
 ```
 
