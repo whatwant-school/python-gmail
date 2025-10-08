@@ -8,7 +8,14 @@
 2. Google 계정 관리 > 보안 > 앱 패스워드 생성
 3. 생성된 16자리 앱 패스워드를 복사
 
-### 2. uv 설치 및 가상환경 설정 (추천)
+### 2. 날씨 API 정보
+
+이 프로젝트는 **Open-Meteo API**를 사용하여 날씨 정보를 조회합니다.
+- **API 키가 필요하지 않음** (무료 제공)
+- 주소를 좌표로 변환: Nominatim API (OpenStreetMap)
+- 날씨 정보 조회: Open-Meteo API
+
+### 3. uv 설치 및 가상환경 설정 (추천)
 
 1. uv 설치:
    ```bash
@@ -21,7 +28,7 @@
    uv sync
    ```
 
-### 3. 환경 변수 설정 방법
+### 4. 환경 변수 설정 방법
 
 #### 방법 1: .env 파일 사용 (추천)
 
@@ -76,7 +83,7 @@ GMAIL_APP_PASSWORD="your-app-password" \
 python3 python-gmail.py
 ```
 
-### 4. 실행 및 확인
+### 5. 실행 및 확인
 
 #### uv 사용시 (추천)
 ```bash

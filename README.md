@@ -8,10 +8,9 @@ Send email via Gmail SMTP with Python
 
 ## 주요 기능
 
-> **예시:**
-> 이메일 본문에 아래와 같은 정보가 자동으로 포함됩니다.
-> - 현재 네트워크 정보 (로컬/공용 IP)
-> - 지정 주소(예: 화성시 동탄) 날씨 정보 (기온, 습도, 풍속, 상태)
+- **Gmail SMTP 이메일 전송**: 앱 패스워드를 이용한 안전한 이메일 전송
+- **네트워크 정보 자동 포함**: 로컬 IP와 공용 IP 정보 자동 조회
+- **날씨 정보 자동 포함**: Open-Meteo API를 사용한 실시간 날씨 정보 (API 키 불필요)
 
 > **예시:**
 > 이메일 본문에 아래와 같은 정보가 자동으로 포함됩니다.
@@ -37,10 +36,9 @@ Send email via Gmail SMTP with Python
 3. 환경 변수 설정:
    > **참고:** `.env.example` 파일이 없다면 아래와 같이 직접 생성하세요.
    > ```env
-   > GMAIL_USER=your_gmail@gmail.com
-   > GMAIL_PASSWORD=your_app_password
-   > WEATHER_API_KEY=your_weather_api_key
-   > LOCATION=화성시 동탄
+   > GMAIL_SENDER_EMAIL=your-email@gmail.com
+   > GMAIL_RECEIVER_EMAIL=receiver@example.com
+   > GMAIL_APP_PASSWORD=your_app_password
    > ```
    ```bash
    cp .env.example .env
