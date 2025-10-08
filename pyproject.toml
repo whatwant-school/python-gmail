@@ -1,6 +1,6 @@
 [project]
 name = "python-gmail"
-version = "0.1.0"
+version = "0.2.1"
 description = "Send email via Gmail SMTP with Python"
 authors = [
     {name = "whatwant", email = "whatwant@whatwant.com"}
@@ -10,6 +10,7 @@ license = {text = "BEER-WARE"}
 requires-python = ">=3.8"
 dependencies = [
     "python-dotenv>=1.0.0",
+    "requests>=2.32.4",
 ]
 
 [tool.uv]
