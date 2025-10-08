@@ -17,6 +17,8 @@ def test_get_weather_by_coordinates_keys():
     assert "wind_speed" in result
     assert "condition" in result
     assert "status" in result
+    assert "time_range" in result
+    assert result["time_range"] == "19:00~21:00"
 
 def test_get_weather_description():
     desc = weather_utils.get_weather_description(0)
@@ -32,18 +34,21 @@ def test_get_weather_by_address_keys():
     assert "condition" in result
     assert "status" in result
     assert "address" in result
+    assert "time_range" in result
 
 def test_format_weather_info_text():
-    info = {"address": "서울", "temperature": "20°C", "humidity": "50%", "wind_speed": "5 km/h", "condition": "맑음", "status": "success"}
+    info = {"address": "서울", "temperature": "20°C", "humidity": "50%", "wind_speed": "5 km/h", "condition": "맑음", "status": "success", "time_range": "19:00~21:00"}
     text = weather_utils.format_weather_info_text(info)
     assert "서울" in text
     assert "20°C" in text
     assert "맑음" in text
+    assert "19:00~21:00" in text
 
 def test_format_weather_info_html():
-    info = {"address": "서울", "temperature": "20°C", "humidity": "50%", "wind_speed": "5 km/h", "condition": "맑음", "status": "success"}
+    info = {"address": "서울", "temperature": "20°C", "humidity": "50%", "wind_speed": "5 km/h", "condition": "맑음", "status": "success", "time_range": "19:00~21:00"}
     html = weather_utils.format_weather_info_html(info)
     assert "<ul>" in html
     assert "서울" in html
     assert "20°C" in html
     assert "맑음" in html
+    assert "19:00~21:00" in html
