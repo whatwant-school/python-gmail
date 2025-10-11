@@ -77,6 +77,8 @@ uv run python_gmail.py
 ### 일반 Python 사용시
 ```bash
 python3 python_gmail.py
+```
+
 #### 이메일 본문 예시
 ```
 [네트워크 정보]
@@ -88,7 +90,6 @@ python3 python_gmail.py
 습도: 60%
 풍속: 2.5 m/s
 상태: 맑음
-```
 ```
 
 실행 시, 이메일 본문에 네트워크 정보와 날씨 정보가 자동으로 포함됩니다.
