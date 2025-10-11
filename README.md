@@ -21,19 +21,26 @@ Send email via Gmail SMTP with Python
 
 ### uv 사용 (추천)
 
+> **⚠️ uv 버전 요구사항**: 이 프로젝트는 dependency-groups 기능을 사용하므로 **uv 0.5.0 이상**이 필요합니다.
+
 1. uv 설치 (아직 설치하지 않은 경우):
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    # 또는 homebrew: brew install uv
    ```
 
-2. 가상환경 생성 및 의존성 설치:
+2. uv 버전 확인:
+   ```bash
+   uv --version  # 0.5.0 이상인지 확인
+   ```
+
+3. 가상환경 생성 및 의존성 설치:
    ```bash
    uv sync
    # 또는 uv pip install requests python-dotenv
    ```
 
-3. 환경 변수 설정:
+4. 환경 변수 설정:
    > **참고:** `.env.example` 파일이 없다면 아래와 같이 직접 생성하세요.
    > ```env
    > GMAIL_SENDER_EMAIL="your-email@gmail.com"
@@ -118,7 +125,7 @@ pytest tests/test_network_utils.py
 pytest tests/test_weather_utils.py
 ```
 
-테스트 파일은 `tests/` 폴더에 있습니다. pytest가 설치되어 있어야 하며, 개발 환경에서는 `uv sync --dev`로 자동 설치됩니다.
+테스트 파일은 `tests/` 폴더에 있습니다. pytest가 설치되어 있어야 하며, 개발 환경에서는 `uv sync --group dev`로 자동 설치됩니다.
 
 자세한 환경 변수 설정 방법은 [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)를 참고하세요.
 
@@ -151,8 +158,8 @@ pytest tests/test_weather_utils.py
 ### 개발 도구 설치
 
 ```bash
-# 개발 도구 설치
-uv sync --dev
+# 개발 도구 설치 (dependency-groups 사용, uv 0.5.0+ 필요)
+uv sync --group dev
 ```
 
 ### 코드 품질 관리

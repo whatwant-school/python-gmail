@@ -17,15 +17,23 @@
 
 ### 3. uv 설치 및 가상환경 설정 (추천)
 
+> **⚠️ uv 버전 요구사항**: 이 프로젝트는 dependency-groups 기능을 사용하므로 **uv 0.5.0 이상**이 필요합니다.
+
 1. uv 설치:
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    # 또는 homebrew: brew install uv
    ```
 
-2. 가상환경 생성 및 의존성 설치:
+2. uv 버전 확인:
+   ```bash
+   uv --version  # 0.5.0 이상인지 확인
+   ```
+
+3. 가상환경 생성 및 의존성 설정:
    ```bash
    uv sync
+   # 개발 도구까지 함께 설치하려면: uv sync --group dev
    ```
 
 ### 4. 환경 변수 설정 방법
