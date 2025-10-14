@@ -1,6 +1,6 @@
 [project]
 name = "python-gmail"
-version = "0.2.1"
+version = "0.3.0"
 description = "Send email via Gmail SMTP with Python"
 authors = [
     {name = "whatwant", email = "whatwant@whatwant.com"}
@@ -9,6 +9,7 @@ readme = "README.md"
 license = {text = "BEER-WARE"}
 requires-python = ">=3.8"
 dependencies = [
+    "beautifulsoup4>=4.14.2",
     "python-dotenv>=1.0.0",
     "requests>=2.32.4",
 ]
@@ -18,6 +19,11 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "pytest>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
 ]
 
 # === 코딩 스타일 설정 (Ruff 기반) ===

@@ -2,20 +2,22 @@
 Send email via Gmail SMTP with Python
 
 
-![version](https://img.shields.io/badge/version-0.2.1-blue)
+![version](https://img.shields.io/badge/version-0.3.0-blue)
 
-이 프로젝트는 Gmail SMTP를 통해 이메일을 전송하며, 이메일 본문에 현재 네트워크(IP) 정보와 지정한 지역의 실시간 날씨 정보를 자동으로 포함합니다.
+이 프로젝트는 Gmail SMTP를 통해 이메일을 전송하며, 이메일 본문에 현재 네트워크(IP) 정보, 지정한 지역의 실시간 날씨 정보, 그리고 해당 지역의 최신 뉴스를 자동으로 포함합니다.
 
 ## 주요 기능
 
 - **Gmail SMTP 이메일 전송**: 앱 패스워드를 이용한 안전한 이메일 전송
 - **네트워크 정보 자동 포함**: 로컬 IP와 공용 IP 정보 자동 조회
 - **날씨 정보 자동 포함**: Open-Meteo API를 사용한 실시간 날씨 정보 (API 키 불필요)
+- **뉴스 정보 자동 포함**: WEATHER_ADDRESS 키워드로 최신 뉴스 검색 및 포함
 
 > **예시:**
 > 이메일 본문에 아래와 같은 정보가 자동으로 포함됩니다.
 > - 현재 네트워크 정보 (로컬/공용 IP)
 > - 지정 주소(예: 화성시 동탄) 날씨 정보 (기온, 습도, 풍속, 상태)
+> - 해당 주소 관련 최신 뉴스 (24시간 이내, 3-5건, 광고 제외)
 
 ## 설치
 
@@ -97,10 +99,29 @@ python3 python_gmail.py
 습도: 60%
 풍속: 2.5 m/s
 상태: 맑음
+
+["화성시" 관련 최신 뉴스 (4건)]
+1. 화성시 동탄 신도시 개발 소식
+   요약: 동탄 2신도시 추가 개발 계획이 발표되었습니다
+   출처: 조선일보
+   등록: 2024-10-14 10:30
+   링크: http://example.com/news1
+
+2. 화성시 교통 개선 계획 발표
+   요약: 지하철 연장과 버스 노선 개편이 진행됩니다
+   출처: 중앙일보
+   등록: 2024-10-14 09:15
+   링크: http://example.com/news2
 ```
 
-실행 시, 이메일 본문에 네트워크 정보와 날씨 정보가 자동으로 포함됩니다.
-날씨 정보의 주소는 환경 변수 `WEATHER_ADDRESS`로 지정할 수 있으며, 미설정시 기본값(화성시 동탄)이 사용됩니다.
+실행 시, 이메일 본문에 네트워크 정보, 날씨 정보, 그리고 해당 지역의 최신 뉴스가 자동으로 포함됩니다.
+- 날씨 정보의 주소는 환경 변수 `WEATHER_ADDRESS`로 지정할 수 있으며, 미설정시 기본값(화성시 동탄)이 사용됩니다.
+- 뉴스 검색은 `WEATHER_ADDRESS` 값을 키워드로 사용하여 최근 24시간 이내의 뉴스를 3-5건 검색합니다.
+- 광고나 홍보성 기사는 자동으로 필터링되며, 중복된 내용의 기사도 제외됩니다.
+- **개선된 뉴스 기능**:
+  * 실제 기사 본문에서 의미있는 요약 생성 (BeautifulSoup4 활용)
+  * 정확한 언론사 출처 추출 (제목, 링크, 도메인 분석)
+  * Google News URL에서 원본 기사 URL 자동 추출
 
 
 ## 테스트 코드 실행
@@ -115,6 +136,7 @@ uv run pytest tests/
 uv run pytest tests/test_python_gmail.py
 uv run pytest tests/test_network_utils.py
 uv run pytest tests/test_weather_utils.py
+uv run pytest tests/test_news_utils.py
 ```
 
 ### 일반 Python 환경에서 테스트 실행
@@ -123,6 +145,7 @@ pytest tests/
 pytest tests/test_python_gmail.py
 pytest tests/test_network_utils.py
 pytest tests/test_weather_utils.py
+pytest tests/test_news_utils.py
 ```
 
 테스트 파일은 `tests/` 폴더에 있습니다. pytest가 설치되어 있어야 하며, 개발 환경에서는 `uv sync --group dev`로 자동 설치됩니다.
@@ -134,14 +157,16 @@ pytest tests/test_weather_utils.py
 
 ### 주요 모듈 구조
 
-- `python_gmail.py` : 메인 실행 파일 (이메일 전송, 네트워크/날씨 정보 포함)
+- `python_gmail.py` : 메인 실행 파일 (이메일 전송, 네트워크/날씨/뉴스 정보 포함)
 - `module/` : 주요 유틸리티 모듈 폴더
    - `network_utils.py` : 네트워크(IP) 정보 조회 및 포맷팅 함수 제공
    - `weather_utils.py` : 주소 기반 날씨 정보 조회 및 포맷팅 함수 제공
+   - `news_utils.py` : 키워드 기반 뉴스 검색 및 포맷팅 함수 제공
 - `tests/` : 단위 테스트 폴더
    - `test_python_gmail.py` : 메인 기능(이메일 전송 등) 테스트
    - `test_network_utils.py` : 네트워크 유틸리티 함수 테스트
    - `test_weather_utils.py` : 날씨 유틸리티 함수 테스트
+   - `test_news_utils.py` : 뉴스 유틸리티 함수 테스트
 
 ### 코딩 스타일
 

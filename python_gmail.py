@@ -4,7 +4,7 @@ Send email via Gmail SMTP
 """
 
 __author__ = "whatwant"
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __license__ = "BEER-WARE"
 
 import os
@@ -12,10 +12,11 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from module.network_utils import (
-    format_ip_info_html,
-    format_ip_info_text,
-    get_ip_info
+from module.network_utils import format_ip_info_html, format_ip_info_text, get_ip_info
+from module.news_utils import (
+    format_news_info_html,
+    format_news_info_text,
+    search_news_by_keyword,
 )
 from module.weather_utils import (
     format_weather_info_html,
@@ -68,15 +69,20 @@ if __name__ == "__main__":
     weather_address = os.getenv("WEATHER_ADDRESS", "화성시 동탄")
     weather_info = get_weather_by_address(weather_address)
 
-    subject = "This is a lucky email with IP & Weather Info"
+    # 뉴스 정보 가져오기 (WEATHER_ADDRESS를 키워드로 사용)
+    news_info = search_news_by_keyword(weather_address, max_results=4, hours_back=24)
+
+    subject = "This is a lucky email with IP, Weather & News Info"
     base_text = "whatwant is a good man."
     ip_text = format_ip_info_text(ip_info)
     weather_text = format_weather_info_text(weather_info)
-    text = base_text + "\n" + ip_text + "\n" + weather_text
+    news_text = format_news_info_text(news_info, weather_address)
+    text = base_text + "\n" + ip_text + "\n" + weather_text + "\n" + news_text
 
     base_html = f"<p>{base_text}</p>"
     ip_html = format_ip_info_html(ip_info)
     weather_html = format_weather_info_html(weather_info)
-    html = f"<html><body>{base_html}{ip_html}{weather_html}</body></html>"
+    news_html = format_news_info_html(news_info, weather_address)
+    html = f"<html><body>{base_html}{ip_html}{weather_html}{news_html}</body></html>"
 
     send_email(sender_email, receiver_email, app_password, subject, text, html)

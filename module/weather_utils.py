@@ -3,7 +3,7 @@ Weather utility functions for getting weather information
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import requests
 
@@ -98,7 +98,11 @@ def get_weather_by_coordinates(lat: float, lon: float) -> Dict[str, str]:
                 avg_humidity = sum(humidities) / len(humidities) if humidities else 0
                 avg_wind = sum(wind_speeds) / len(wind_speeds) if wind_speeds else 0
                 # 가장 빈번한 날씨 코드 선택
-                most_common_code = max(set(weather_codes), key=weather_codes.count) if weather_codes else 0
+                most_common_code = (
+                    max(set(weather_codes), key=weather_codes.count)
+                    if weather_codes
+                    else 0
+                )
             else:
                 # 19시~21시 데이터가 없으면 현재 시간의 데이터 사용
                 current_params = {
@@ -108,7 +112,11 @@ def get_weather_by_coordinates(lat: float, lon: float) -> Dict[str, str]:
                     "timezone": "Asia/Seoul",
                     "forecast_days": 1,
                 }
-                current_response = requests.get(url.replace("forecast", "forecast"), params=current_params, timeout=10)
+                current_response = requests.get(
+                    url.replace("forecast", "forecast"),
+                    params=current_params,
+                    timeout=10,
+                )
                 if current_response.status_code == 200:
                     current_data = current_response.json().get("current", {})
                     avg_temp = current_data.get("temperature_2m", 0)
