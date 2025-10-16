@@ -2,9 +2,9 @@
 Send email via Gmail SMTP with Python
 
 
-![version](https://img.shields.io/badge/version-0.3.0-blue)
+![version](https://img.shields.io/badge/version-0.4.0-blue)
 
-이 프로젝트는 Gmail SMTP를 통해 이메일을 전송하며, 이메일 본문에 현재 네트워크(IP) 정보, 지정한 지역의 실시간 날씨 정보, 그리고 해당 지역의 최신 뉴스를 자동으로 포함합니다.
+이 프로젝트는 Gmail SMTP를 통해 이메일을 전송하며, 이메일 본문에 현재 네트워크(IP) 정보, 지정한 지역의 실시간 날씨 정보, 해당 지역의 최신 뉴스, 그리고 관련 블로그 글을 자동으로 포함합니다.
 
 ## 주요 기능
 
@@ -12,12 +12,14 @@ Send email via Gmail SMTP with Python
 - **네트워크 정보 자동 포함**: 로컬 IP와 공용 IP 정보 자동 조회
 - **날씨 정보 자동 포함**: Open-Meteo API를 사용한 실시간 날씨 정보 (API 키 불필요)
 - **뉴스 정보 자동 포함**: WEATHER_ADDRESS 키워드로 최신 뉴스 검색 및 포함
+- **블로그 정보 자동 포함**: WEATHER_ADDRESS 키워드로 최신 블로그 글 검색 및 포함
 
 > **예시:**
 > 이메일 본문에 아래와 같은 정보가 자동으로 포함됩니다.
 > - 현재 네트워크 정보 (로컬/공용 IP)
 > - 지정 주소(예: 화성시 동탄) 날씨 정보 (기온, 습도, 풍속, 상태)
 > - 해당 주소 관련 최신 뉴스 (24시간 이내, 3-5건, 광고 제외)
+> - 해당 주소 관련 최신 블로그 (24시간 이내, 3-5건, 광고 제외)
 
 ## 설치
 
@@ -112,11 +114,25 @@ python3 python_gmail.py
    출처: 중앙일보
    등록: 2024-10-14 09:15
    링크: http://example.com/news2
+
+["화성시" 관련 최신 블로그 (3건)]
+1. 화성시 동탄 맛집 탐방
+   요약: 동탄 지역의 숨겨진 맛집들을 소개합니다
+   출처: foodlover (티스토리)
+   등록: 2024-10-14 11:45
+   링크: http://example.com/blog1
+
+2. 화성시 생활 정보
+   요약: 동탄 신도시에서의 생활 꿀팁을 공유합니다
+   출처: lifeindontan (네이버 블로그)
+   등록: 2024-10-14 08:20
+   링크: http://example.com/blog2
 ```
 
-실행 시, 이메일 본문에 네트워크 정보, 날씨 정보, 그리고 해당 지역의 최신 뉴스가 자동으로 포함됩니다.
+실행 시, 이메일 본문에 네트워크 정보, 날씨 정보, 그리고 해당 지역의 최신 뉴스와 블로그가 자동으로 포함됩니다.
 - 날씨 정보의 주소는 환경 변수 `WEATHER_ADDRESS`로 지정할 수 있으며, 미설정시 기본값(화성시 동탄)이 사용됩니다.
 - 뉴스 검색은 `WEATHER_ADDRESS` 값을 키워드로 사용하여 최근 24시간 이내의 뉴스를 3-5건 검색합니다.
+- 블로그 검색은 `WEATHER_ADDRESS` 값을 키워드로 사용하여 최근 24시간 이내의 블로그 글을 3-5건 검색합니다.
 - 광고나 홍보성 기사는 자동으로 필터링되며, 중복된 내용의 기사도 제외됩니다.
 - **개선된 뉴스 기능**:
   * 실제 기사 본문에서 의미있는 요약 생성 (BeautifulSoup4 활용)
@@ -137,6 +153,7 @@ uv run pytest tests/test_python_gmail.py
 uv run pytest tests/test_network_utils.py
 uv run pytest tests/test_weather_utils.py
 uv run pytest tests/test_news_utils.py
+uv run pytest tests/test_blog_utils.py
 ```
 
 ### 일반 Python 환경에서 테스트 실행
@@ -146,6 +163,7 @@ pytest tests/test_python_gmail.py
 pytest tests/test_network_utils.py
 pytest tests/test_weather_utils.py
 pytest tests/test_news_utils.py
+pytest tests/test_blog_utils.py
 ```
 
 테스트 파일은 `tests/` 폴더에 있습니다. pytest가 설치되어 있어야 하며, 개발 환경에서는 `uv sync --group dev`로 자동 설치됩니다.
@@ -162,11 +180,13 @@ pytest tests/test_news_utils.py
    - `network_utils.py` : 네트워크(IP) 정보 조회 및 포맷팅 함수 제공
    - `weather_utils.py` : 주소 기반 날씨 정보 조회 및 포맷팅 함수 제공
    - `news_utils.py` : 키워드 기반 뉴스 검색 및 포맷팅 함수 제공
+   - `blog_utils.py` : 키워드 기반 블로그 검색 및 포맷팅 함수 제공
 - `tests/` : 단위 테스트 폴더
    - `test_python_gmail.py` : 메인 기능(이메일 전송 등) 테스트
    - `test_network_utils.py` : 네트워크 유틸리티 함수 테스트
    - `test_weather_utils.py` : 날씨 유틸리티 함수 테스트
    - `test_news_utils.py` : 뉴스 유틸리티 함수 테스트
+   - `test_blog_utils.py` : 블로그 유틸리티 함수 테스트
 
 ### 코딩 스타일
 
