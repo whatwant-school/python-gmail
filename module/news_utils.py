@@ -2,6 +2,7 @@
 News utility functions for searching latest news by keyword
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -13,78 +14,124 @@ def search_news_by_keyword(
     keyword: str, max_results: int = 5, hours_back: int = 24
 ) -> List[Dict[str, Any]]:
     """
-    키워드를 기반으로 최근 뉴스를 검색합니다.
+    키워드를 기반으로 최근 뉴스를 검색합니다. (Naver API 사용)
 
     Args:
         keyword (str): 검색할 키워드
-        max_results (int): 최대 결과 수 (3-5개 권장)
+        max_results (int): 최대 결과 수 (3-5개 권장, 최대 100)
         hours_back (int): 검색할 시간 범위 (시간 단위, 기본 24시간)
 
     Returns:
         List[Dict[str, Any]]: 뉴스 기사 목록
+
+    Environment Variables:
+        NAVER_CLIENT_ID: Naver API Client ID
+        NAVER_CLIENT_SECRET: Naver API Client Secret
     """
     try:
-        # Google News RSS API를 사용한 뉴스 검색
-        # RSS를 JSON으로 변환해주는 무료 서비스 활용
+        # 환경변수에서 Naver API 인증 정보 가져오기
+        client_id = os.getenv("NAVER_CLIENT_ID")
+        client_secret = os.getenv("NAVER_CLIENT_SECRET")
+
+        if not client_id or not client_secret:
+            print(
+                "경고: NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다."
+            )
+            return _fallback_news_search(keyword, max_results)
+
+        # Naver 뉴스 검색 API 호출
         import urllib.parse
 
-        search_query = f"{keyword} -광고 -홍보"  # 광고, 홍보 제외
-        encoded_query = urllib.parse.quote(search_query)
+        # 키워드를 공백으로 분리
+        keywords = keyword.strip().split()
+        all_articles = []
 
-        # RSS2JSON API 사용 (무료 서비스)
-        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=ko&gl=KR&ceid=KR:ko"
-        encoded_rss_url = urllib.parse.quote(rss_url, safe="")
-        api_url = f"https://api.rss2json.com/v1/api.json?rss_url={encoded_rss_url}"
+        if len(keywords) > 1:
+            # 여러 키워드인 경우 각각 개별 검색 후 합치기
+            for kw in keywords:
+                search_query = f"{kw} -광고 -홍보"
+                encoded_query = urllib.parse.quote(search_query)
+                api_url = f"https://openapi.naver.com/v1/search/news.json?query={encoded_query}&display={min(max_results * 3, 100)}&sort=date"
 
-        response = requests.get(api_url, timeout=10)
+                headers = {
+                    "X-Naver-Client-Id": client_id,
+                    "X-Naver-Client-Secret": client_secret,
+                }
 
-        if response.status_code != 200:
+                response = requests.get(api_url, headers=headers, timeout=10)
+
+                if response.status_code == 200:
+                    data = response.json()
+                    all_articles.extend(data.get("items", []))
+        else:
+            # 단일 키워드인 경우 그대로 사용
+            search_query = f"{keyword} -광고 -홍보"
+            encoded_query = urllib.parse.quote(search_query)
+            api_url = f"https://openapi.naver.com/v1/search/news.json?query={encoded_query}&display={min(max_results * 2, 100)}&sort=date"
+
+            headers = {
+                "X-Naver-Client-Id": client_id,
+                "X-Naver-Client-Secret": client_secret,
+            }
+
+            response = requests.get(api_url, headers=headers, timeout=10)
+
+            if response.status_code != 200:
+                print(f"Naver API 오류: {response.status_code}")
+                print(f"응답 내용: {response.text[:200]}")
+                return _fallback_news_search(keyword, max_results)
+
+            data = response.json()
+            all_articles = data.get("items", [])
+
+        articles = all_articles
+
+        if not articles:
             return _fallback_news_search(keyword, max_results)
-
-        data = response.json()
-
-        if data.get("status") != "ok":
-            return _fallback_news_search(keyword, max_results)
-
-        articles = data.get("items", [])
 
         # 시간 필터링 및 중복 제거
-        cutoff_time = datetime.now() - timedelta(hours=hours_back)
+        # timezone aware로 변경 (한국 시간 기준)
+        from datetime import timezone
+
+        # KST (UTC+9) 기준으로 현재 시간 계산
+        kst = timezone(timedelta(hours=9))
+        cutoff_time = datetime.now(kst) - timedelta(hours=hours_back)
         filtered_articles = []
         seen_titles = set()
 
         for article in articles:
             # 제목 중복 체크 (유사한 기사 제외)
             title = article.get("title", "")
+            # HTML 태그 제거
+            title = _remove_html_tags(title)
+
             if not title or _is_similar_title(title, seen_titles):
                 continue
 
             # 광고/홍보 기사 필터링
-            if _is_ad_or_promotional(title, article.get("description", "")):
+            description = article.get("description", "")
+            description = _remove_html_tags(description)
+
+            if _is_ad_or_promotional(title, description):
                 continue
 
-            # 발행 시간 파싱
+            # 발행 시간 파싱 (Naver API는 "YYYYMMDD" 또는 RFC 형식)
             pub_date = _parse_pub_date(article.get("pubDate", ""))
             if pub_date and pub_date < cutoff_time:
                 continue
 
             # 뉴스 정보 구성
-            description = article.get("description", "")
-            link = article.get("link", "")
+            link = article.get("originallink", "") or article.get("link", "")
 
-            # 개선된 출처 추출
-            source = _extract_source(article.get("source", {}))
-            if source == "알 수 없는 출처":
-                source = _extract_source_from_title_and_description(
-                    title, description, link
-                )
+            # 출처 추출
+            source = _extract_source_from_title_and_description(
+                title, description, link
+            )
 
-            # 기사 본문을 가져와서 개선된 요약 생성
-            try:
-                article_content = _fetch_article_content(link) if link else ""
-                summary = _generate_summary(title, article_content, description)
-            except Exception:
-                summary = _clean_description(description)
+            # 요약 생성
+            summary = (
+                _clean_description(description) if description else "요약 정보 없음"
+            )
 
             news_item = {
                 "title": title,
@@ -119,6 +166,34 @@ def search_news_by_keyword(
         return _fallback_news_search(keyword, max_results)
 
 
+def _remove_html_tags(text: str) -> str:
+    """
+    HTML 태그와 엔티티를 제거합니다.
+
+    Args:
+        text (str): HTML이 포함된 텍스트
+
+    Returns:
+        str: HTML 태그가 제거된 텍스트
+    """
+    import html
+    import re
+
+    if not text:
+        return ""
+
+    # HTML 엔티티 디코드 (&lt;, &gt;, &quot; 등)
+    text = html.unescape(text)
+
+    # HTML 태그 제거
+    text = re.sub(r"<[^>]+>", "", text)
+
+    # 연속된 공백 정리
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
 def _fallback_news_search(keyword: str, max_results: int = 5) -> List[Dict[str, Any]]:
     """
     주 API가 실패했을 때 사용할 대체 뉴스 검색 방법
@@ -148,8 +223,10 @@ def _fallback_news_search(keyword: str, max_results: int = 5) -> List[Dict[str, 
                 }
             ]
 
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+
+        logging.warning(f"_fallback_news_search 예외: {e}")
 
     # 모든 방법이 실패한 경우
     return [
@@ -179,10 +256,11 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
     # 다양한 날짜 형식 지원
     formats = [
         "%a, %d %b %Y %H:%M:%S %Z",  # RSS 표준 형식
-        "%a, %d %b %Y %H:%M:%S %z",  # RFC 2822
+        "%a, %d %b %Y %H:%M:%S %z",  # RFC 2822 (Naver API 형식)
         "%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
         "%Y-%m-%d %H:%M:%S",  # 일반적인 형식
         "%Y-%m-%d",  # 날짜만
+        "%Y%m%d",  # Naver API 형식 (YYYYMMDD)
     ]
 
     for fmt in formats:
@@ -200,8 +278,10 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
         if korean_date:
             year, month, day = korean_date.groups()
             return datetime(int(year), int(month), int(day))
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+
+        logging.warning(f"_parse_pub_date 예외: {e}")
 
     return None
 
@@ -279,38 +359,25 @@ def _is_ad_or_promotional(title: str, description: str) -> bool:
     Returns:
         bool: 광고/홍보 기사면 True
     """
-    content = (title + " " + description).lower()
+    # 제목과 설명을 합친 텍스트 (대소문자 구분 없이)
+    combined = (title + " " + description).lower()
 
-    # 광고/홍보 관련 키워드
+    # 명확한 광고성 표시만 체크 (제목이나 설명 앞부분에 표시된 경우)
     ad_keywords = [
-        "광고",
-        "홍보",
-        "협찬",
-        "제휴",
-        "할인",
-        "이벤트",
-        "프로모션",
-        "마케팅",
-        "브랜드",
-        "론칭",
-        "오픈",
-        "신제품",
-        "출시",
-        "특가",
-        "세일",
-        "쿠폰",
-        "포인트",
-        "혜택",
-        "무료체험",
         "[광고]",
         "(광고)",
         "[pr]",
         "(pr)",
         "[홍보]",
         "(홍보)",
+        "제휴광고",
+        "협찬광고",
     ]
 
-    return any(keyword in content for keyword in ad_keywords)
+    # 제목이나 설명의 시작 100자 이내에 광고 표시가 있는지 확인
+    prefix = combined[:100]
+
+    return any(keyword in prefix for keyword in ad_keywords)
 
 
 def _clean_description(description: str) -> str:
@@ -496,8 +563,10 @@ def _extract_source_from_title_and_description(
                         .title()
                     )
 
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+
+            logging.warning(f"_extract_source_from_title_and_description 예외: {e}")
 
     # 4. 기타 패턴으로 출처 추출
     combined_text = f"{title} {description}"

@@ -2,86 +2,138 @@
 Blog utility functions for searching latest blog posts by keyword
 """
 
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import requests
-from bs4 import BeautifulSoup
 
 
 def search_blogs_by_keyword(
     keyword: str, max_results: int = 5, hours_back: int = 24
 ) -> List[Dict[str, Any]]:
     """
-    키워드를 기반으로 최근 블로그 글을 검색합니다.
+    키워드를 기반으로 최근 블로그 글을 검색합니다. (Naver API 사용)
 
     Args:
         keyword (str): 검색할 키워드
-        max_results (int): 최대 결과 수 (3-5개 권장)
+        max_results (int): 최대 결과 수 (3-5개 권장, 최대 100)
         hours_back (int): 검색할 시간 범위 (시간 단위, 기본 24시간)
 
     Returns:
         List[Dict[str, Any]]: 블로그 글 목록
+
+    Environment Variables:
+        NAVER_CLIENT_ID: Naver API Client ID
+        NAVER_CLIENT_SECRET: Naver API Client Secret
     """
     try:
-        # Google Blog Search RSS를 사용한 블로그 검색
+        # 환경변수에서 Naver API 인증 정보 가져오기
+        client_id = os.getenv("NAVER_CLIENT_ID")
+        client_secret = os.getenv("NAVER_CLIENT_SECRET")
+
+        if not client_id or not client_secret:
+            print(
+                "경고: NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다."
+            )
+            return _fallback_blog_search(keyword, max_results)
+
+        # Naver 블로그 검색 API 호출
         import urllib.parse
 
-        search_query = f"{keyword} -광고 -홍보"  # 광고, 홍보 제외
-        encoded_query = urllib.parse.quote(search_query)
+        # 키워드를 공백으로 분리
+        keywords = keyword.strip().split()
+        all_articles = []
 
-        # Google Blogs RSS 검색 (티스토리, 네이버 블로그, 브런치)
-        rss_url = f"https://news.google.com/rss/search?q={encoded_query}+when:1d+site:tistory.com+OR+site:blog.naver.com+OR+site:brunch.co.kr&hl=ko&gl=KR&ceid=KR:ko"
+        if len(keywords) > 1:
+            # 여러 키워드인 경우 각각 개별 검색 후 합치기
+            for kw in keywords:
+                search_query = f"{kw} -광고 -홍보"
+                encoded_query = urllib.parse.quote(search_query)
+                api_url = f"https://openapi.naver.com/v1/search/blog.json?query={encoded_query}&display={min(max_results * 3, 100)}&sort=date"
 
-        # RSS2JSON API 사용 (무료 서비스)
-        encoded_rss_url = urllib.parse.quote(rss_url, safe="")
-        api_url = f"https://api.rss2json.com/v1/api.json?rss_url={encoded_rss_url}"
+                headers = {
+                    "X-Naver-Client-Id": client_id,
+                    "X-Naver-Client-Secret": client_secret,
+                }
 
-        response = requests.get(api_url, timeout=10)
+                response = requests.get(api_url, headers=headers, timeout=10)
 
-        if response.status_code != 200:
+                if response.status_code == 200:
+                    data = response.json()
+                    all_articles.extend(data.get("items", []))
+        else:
+            # 단일 키워드인 경우 그대로 사용
+            search_query = f"{keyword} -광고 -홍보"
+            encoded_query = urllib.parse.quote(search_query)
+            api_url = f"https://openapi.naver.com/v1/search/blog.json?query={encoded_query}&display={min(max_results * 2, 100)}&sort=date"
+
+            headers = {
+                "X-Naver-Client-Id": client_id,
+                "X-Naver-Client-Secret": client_secret,
+            }
+
+            response = requests.get(api_url, headers=headers, timeout=10)
+
+            if response.status_code != 200:
+                print(f"Naver API 오류: {response.status_code}")
+                print(f"응답 내용: {response.text[:200]}")
+                return _fallback_blog_search(keyword, max_results)
+
+            data = response.json()
+            all_articles = data.get("items", [])
+
+        articles = all_articles
+
+        if not articles:
             return _fallback_blog_search(keyword, max_results)
 
-        data = response.json()
-
-        if data.get("status") != "ok":
+        if not articles:
             return _fallback_blog_search(keyword, max_results)
-
-        articles = data.get("items", [])
 
         # 시간 필터링 및 중복 제거
-        cutoff_time = datetime.now() - timedelta(hours=hours_back)
+        # timezone aware로 변경 (한국 시간 기준)
+        from datetime import timezone
+
+        # KST (UTC+9) 기준으로 현재 시간 계산
+        kst = timezone(timedelta(hours=9))
+        cutoff_time = datetime.now(kst) - timedelta(hours=hours_back)
         filtered_blogs = []
         seen_titles = set()
 
         for article in articles:
             # 제목 중복 체크 (유사한 글 제외)
             title = article.get("title", "")
+            # HTML 태그 제거
+            title = _remove_html_tags(title)
+
             if not title or _is_similar_title(title, seen_titles):
                 continue
 
             # 광고/홍보 글 필터링
-            if _is_ad_or_promotional(title, article.get("description", "")):
+            description = article.get("description", "")
+            description = _remove_html_tags(description)
+
+            if _is_ad_or_promotional(title, description):
                 continue
 
-            # 발행 시간 파싱
-            pub_date = _parse_pub_date(article.get("pubDate", ""))
+            # 발행 시간 파싱 (Naver API는 "YYYYMMDD" 형식)
+            pub_date = _parse_pub_date(article.get("postdate", ""))
             if pub_date and pub_date < cutoff_time:
                 continue
 
             # 블로그 정보 구성
-            description = article.get("description", "")
             link = article.get("link", "")
 
             # 블로그 출처 추출
-            source = _extract_blog_source(link, title, description)
+            source = _extract_blog_source(
+                link, article.get("bloggername", ""), article.get("bloggerlink", "")
+            )
 
-            # 블로그 본문을 가져와서 개선된 요약 생성
-            try:
-                blog_content = _fetch_blog_content(link) if link else ""
-                summary = _generate_summary(title, blog_content, description)
-            except Exception:
-                summary = _clean_description(description)
+            # 요약 생성
+            summary = (
+                _clean_description(description) if description else "요약 정보 없음"
+            )
 
             blog_item = {
                 "title": title,
@@ -116,6 +168,34 @@ def search_blogs_by_keyword(
         return _fallback_blog_search(keyword, max_results)
 
 
+def _remove_html_tags(text: str) -> str:
+    """
+    HTML 태그와 엔티티를 제거합니다.
+
+    Args:
+        text (str): HTML이 포함된 텍스트
+
+    Returns:
+        str: HTML 태그가 제거된 텍스트
+    """
+    import html
+    import re
+
+    if not text:
+        return ""
+
+    # HTML 엔티티 디코드 (&lt;, &gt;, &quot; 등)
+    text = html.unescape(text)
+
+    # HTML 태그 제거
+    text = re.sub(r"<[^>]+>", "", text)
+
+    # 연속된 공백 정리
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
 def _fallback_blog_search(keyword: str, max_results: int = 5) -> List[Dict[str, Any]]:
     """
     주 API가 실패했을 때 사용할 대체 블로그 검색 방법
@@ -144,7 +224,7 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
     다양한 형식의 날짜 문자열을 datetime 객체로 변환
 
     Args:
-        date_str (str): 날짜 문자열
+        date_str (str): 날짜 문자열 (Naver API는 "YYYYMMDD" 형식)
 
     Returns:
         Optional[datetime]: 파싱된 datetime 객체 또는 None
@@ -154,6 +234,7 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
 
     # 다양한 날짜 형식 지원
     formats = [
+        "%Y%m%d",  # Naver API 형식 (YYYYMMDD)
         "%a, %d %b %Y %H:%M:%S %Z",  # RSS 표준 형식
         "%a, %d %b %Y %H:%M:%S %z",  # RFC 2822
         "%Y-%m-%dT%H:%M:%S%z",  # ISO 8601
@@ -163,7 +244,14 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
 
     for fmt in formats:
         try:
-            return datetime.strptime(date_str.strip(), fmt)
+            parsed_date = datetime.strptime(date_str.strip(), fmt)
+            # timezone이 없으면 KST 추가
+            if parsed_date.tzinfo is None:
+                from datetime import timezone
+
+                kst = timezone(timedelta(hours=9))
+                parsed_date = parsed_date.replace(tzinfo=kst)
+            return parsed_date
         except ValueError:
             continue
 
@@ -175,9 +263,14 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
         korean_date = re.search(r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일", date_str)
         if korean_date:
             year, month, day = korean_date.groups()
-            return datetime(int(year), int(month), int(day))
-    except Exception:
-        pass
+            from datetime import timezone
+
+            kst = timezone(timedelta(hours=9))
+            return datetime(int(year), int(month), int(day), tzinfo=kst)
+    except Exception as e:
+        import logging
+
+        logging.warning(f"_parse_pub_date 예외: {e}")
 
     return None
 
@@ -255,38 +348,25 @@ def _is_ad_or_promotional(title: str, description: str) -> bool:
     Returns:
         bool: 광고/홍보 글이면 True
     """
-    content = (title + " " + description).lower()
+    # 제목과 설명을 합친 텍스트 (대소문자 구분 없이)
+    combined = (title + " " + description).lower()
 
-    # 광고/홍보 관련 키워드
+    # 명확한 광고성 표시만 체크 (제목이나 설명 앞부분에 표시된 경우)
     ad_keywords = [
-        "광고",
-        "홍보",
-        "협찬",
-        "제휴",
-        "할인",
-        "이벤트",
-        "프로모션",
-        "마케팅",
-        "브랜드",
-        "론칭",
-        "오픈",
-        "신제품",
-        "출시",
-        "특가",
-        "세일",
-        "쿠폰",
-        "포인트",
-        "혜택",
-        "무료체험",
         "[광고]",
         "(광고)",
         "[pr]",
         "(pr)",
         "[홍보]",
         "(홍보)",
+        "제휴광고",
+        "협찬광고",
     ]
 
-    return any(keyword in content for keyword in ad_keywords)
+    # 제목이나 설명의 시작 100자 이내에 광고 표시가 있는지 확인
+    prefix = combined[:100]
+
+    return any(keyword in prefix for keyword in ad_keywords)
 
 
 def _clean_description(description: str) -> str:
@@ -346,47 +426,35 @@ def _clean_description(description: str) -> str:
     )
 
 
-def _extract_blog_source(link: str, title: str = "", description: str = "") -> str:
+def _extract_blog_source(
+    link: str, blogger_name: str = "", blogger_link: str = ""
+) -> str:
     """
     블로그 출처 정보 추출
 
     Args:
         link (str): 블로그 링크
-        title (str): 글 제목
-        description (str): 글 설명
+        blogger_name (str): 블로거 이름 (Naver API 제공)
+        blogger_link (str): 블로거 링크 (Naver API 제공)
 
     Returns:
         str: 출처 이름
     """
-    import re
     from urllib.parse import urlparse
 
-    # 1. 제목에서 블로그 플랫폼 정보 추출 (Google News RSS는 제목에 출처 포함)
-    if title:
-        # "제목 : 네이버 블로그" 또는 "제목 - 네이버" 패턴
-        if "네이버 블로그" in title or ": 네이버 블로그" in title:
-            # "제목 : 네이버 블로그 - NAVER" 형태에서 제목 부분만 추출
-            title_parts = re.split(r'\s*[:：]\s*네이버\s*블로그', title)
-            if title_parts and len(title_parts[0]) > 0:
-                clean_title = title_parts[0].strip()
-                return f"{clean_title[:30]}... (네이버 블로그)"
-            return "네이버 블로그"
+    # 1. Naver API에서 제공하는 블로거 이름 사용
+    if blogger_name:
+        # 블로그 플랫폼 판별
+        platform = ""
+        if link:
+            if "blog.naver.com" in link:
+                platform = " (네이버 블로그)"
+            elif "tistory.com" in link:
+                platform = " (티스토리)"
+            elif "brunch.co.kr" in link:
+                platform = " (브런치)"
 
-        # "제목 - 티스토리" 패턴
-        if "티스토리" in title or "- 티스토리" in title:
-            title_parts = re.split(r'\s*-\s*티스토리', title)
-            if title_parts and len(title_parts[0]) > 0:
-                clean_title = title_parts[0].strip()
-                return f"{clean_title[:30]}... (티스토리)"
-            return "티스토리"
-
-        # "제목 - 브런치" 패턴
-        if "브런치" in title or "brunch" in title.lower():
-            return "브런치"
-
-        # "NAVER" 키워드가 있으면 네이버 블로그로 추정
-        if "NAVER" in title or "naver" in title.lower():
-            return "네이버 블로그"
+        return f"{blogger_name}{platform}"
 
     # 2. 링크에서 블로그 플랫폼 및 사용자 추출
     if link:
@@ -430,233 +498,12 @@ def _extract_blog_source(link: str, title: str = "", description: str = "") -> s
             ):
                 return f"{domain.replace('www.', '')} (블로그)"
 
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
 
-    # 3. 제목이나 설명에서 블로그명 추출 시도
-    combined_text = f"{title} {description}"
-
-    # 괄호 안의 블로그명
-    bracket_source = re.search(r"\(([가-힣A-Za-z0-9]+\s*블로그)\)", combined_text)
-    if bracket_source:
-        return bracket_source.group(1)
+            logging.warning(f"_extract_blog_source 예외: {e}")
 
     return "블로그"
-
-
-def _get_real_url_from_google(google_url: str) -> str:
-    """
-    Google 검색 URL에서 실제 원본 블로그 URL을 추출합니다.
-
-    Args:
-        google_url (str): Google 검색 URL
-
-    Returns:
-        str: 실제 블로그 URL 또는 원본 URL
-    """
-    try:
-        if not google_url or "google.com" not in google_url:
-            return google_url
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-
-        # Google 링크를 따라가서 실제 URL 얻기
-        response = requests.get(
-            google_url, headers=headers, timeout=10, allow_redirects=True
-        )
-
-        # 최종 리다이렉트된 URL 반환
-        final_url = response.url
-
-        # Google 내부 URL이면 포기
-        if "google.com" in final_url:
-            return google_url
-
-        return final_url
-
-    except Exception:
-        return google_url
-
-
-def _fetch_blog_content(url: str) -> str:
-    """
-    블로그 URL에서 본문 내용을 추출합니다.
-
-    Args:
-        url (str): 블로그 URL
-
-    Returns:
-        str: 추출된 본문 내용
-    """
-    try:
-        # Google URL인 경우 실제 URL로 변환 시도
-        real_url = _get_real_url_from_google(url)
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
-
-        response = requests.get(real_url, headers=headers, timeout=10)
-        if response.status_code != 200:
-            return ""
-
-        soup = BeautifulSoup(response.content, "html.parser")
-
-        # 광고, 스크립트, 스타일 태그 제거
-        for script in soup(["script", "style", "nav", "header", "footer", "aside"]):
-            script.decompose()
-
-        # 다양한 블로그 플랫폼의 본문 선택자
-        content_selectors = [
-            # 티스토리
-            ".entry-content",
-            ".tt_article_useless_p_margin",
-            ".article-content",
-            # 네이버 블로그
-            "#postViewArea",
-            ".se-main-container",
-            ".se_component_wrap",
-            # 브런치
-            ".wrap_body",
-            ".wrap_view_article",
-            # 미디엄
-            "article",
-            ".postArticle-content",
-            # 일반적인 선택자
-            ".post-content",
-            ".blog-content",
-            ".content",
-            'div[class*="content"]',
-            'div[class*="post"]',
-            'div[class*="article"]',
-            # 마지막 시도: p 태그들
-            "p",
-        ]
-
-        content = ""
-        for selector in content_selectors:
-            elements = soup.select(selector)
-            if elements:
-                if selector == "p":
-                    # p 태그의 경우 여러 개를 합침
-                    paragraphs = []
-                    for elem in elements[:10]:  # 처음 10개 문단까지
-                        text = elem.get_text().strip()
-                        if (
-                            len(text) > 20
-                            and not text.startswith(("사진", "이미지", "출처", "©"))
-                            and "광고" not in text
-                            and "홍보" not in text
-                        ):
-                            paragraphs.append(text)
-                    content = " ".join(paragraphs)
-                else:
-                    content = elements[0].get_text().strip()
-
-                if len(content) > 100:  # 충분한 내용이 있으면 사용
-                    break
-
-        # 텍스트 정제
-        if content:
-            import re
-
-            # 연속된 공백, 줄바꿈 정리
-            content = re.sub(r"\s+", " ", content).strip()
-
-            # 너무 긴 내용은 처음 500자만 사용
-            if len(content) > 500:
-                content = content[:500]
-
-        return content
-
-    except Exception:
-        return ""
-
-
-def _generate_summary(title: str, content: str, description: str = "") -> str:
-    """
-    글 제목, 본문, 설명을 바탕으로 요약을 생성합니다.
-
-    Args:
-        title (str): 글 제목
-        content (str): 글 본문
-        description (str): 글 설명
-
-    Returns:
-        str: 생성된 요약
-    """
-    import re
-
-    # 본문이 있으면 본문 기반 요약 생성
-    if content and len(content.strip()) > 50:
-        # 본문에서 핵심 문장 추출
-        sentences = re.split(r"[.!?]", content)
-        meaningful_sentences = []
-
-        # 제목에서 주요 키워드 추출
-        title_keywords = set(re.findall(r"[가-힣]{2,}", title))
-
-        for sentence in sentences:
-            sentence = sentence.strip()
-
-            # 의미있는 문장 필터링
-            if (
-                len(sentence) > 20
-                and len(sentence) < 200
-                and not sentence.startswith(("사진", "이미지", "출처", "©"))
-                and not re.match(r"^[\d\s\-()]+$", sentence)
-                and "광고" not in sentence
-                and "홍보" not in sentence
-            ):
-                # 제목과 관련성 높은 문장 우선 선택
-                sentence_keywords = set(re.findall(r"[가-힣]{2,}", sentence))
-                relevance_score = len(title_keywords.intersection(sentence_keywords))
-
-                meaningful_sentences.append((sentence, relevance_score))
-
-        if meaningful_sentences:
-            # 관련성 점수로 정렬
-            meaningful_sentences.sort(key=lambda x: x[1], reverse=True)
-
-            # 상위 2개 문장으로 요약 구성
-            selected_sentences = [sent[0] for sent in meaningful_sentences[:2]]
-            summary = ". ".join(selected_sentences)
-
-            # 요약이 제목과 너무 유사하면 다른 문장 시도
-            if (
-                _calculate_similarity(
-                    _normalize_title(title), _normalize_title(summary)
-                )
-                > 0.7
-            ):
-                if len(meaningful_sentences) > 2:
-                    selected_sentences = [sent[0] for sent in meaningful_sentences[1:3]]
-                    summary = ". ".join(selected_sentences)
-
-            if len(summary) > 150:
-                summary = summary[:147] + "..."
-            elif not summary.endswith("."):
-                summary += "."
-
-            return summary
-
-    # 본문이 없거나 짧으면 설명에서 요약 추출 시도
-    if description:
-        cleaned_desc = _clean_description(description)
-        if (
-            cleaned_desc
-            and cleaned_desc
-            not in ["요약 정보 없음", "블로그 본문에서 상세 내용을 확인하세요"]
-            and _calculate_similarity(
-                _normalize_title(title), _normalize_title(cleaned_desc)
-            )
-            < 0.8
-        ):
-            return cleaned_desc
-
-    return "블로그 본문에서 상세 내용을 확인하세요."
 
 
 def format_blog_info_text(blog_list: List[Dict[str, Any]], keyword: str) -> str:

@@ -52,7 +52,10 @@ def get_public_ip() -> str:
                         return json.loads(response.text)["origin"]
                     elif "ipecho" in service:
                         return response.text.strip()
-            except Exception:
+            except Exception as e:
+                import logging
+
+                logging.warning(f"get_public_ip 예외: {e}")
                 continue
 
         return "공용 IP 조회 실패: 모든 서비스에 접근할 수 없습니다"

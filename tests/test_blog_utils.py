@@ -8,11 +8,11 @@ from module.blog_utils import (
     _calculate_similarity,
     _clean_description,
     _extract_blog_source,
-    _generate_summary,
     _is_ad_or_promotional,
     _is_similar_title,
     _normalize_title,
     _parse_pub_date,
+    _remove_html_tags,
     format_blog_info_html,
     format_blog_info_text,
     search_blogs_by_keyword,
@@ -41,6 +41,15 @@ def test_search_blogs_by_keyword():
 
 def test_parse_pub_date():
     """날짜 파싱 테스트"""
+    # Naver API 형식 (YYYYMMDD)
+    date_str = "20240115"
+    parsed_date = _parse_pub_date(date_str)
+    assert parsed_date is not None
+    assert isinstance(parsed_date, datetime)
+    assert parsed_date.year == 2024
+    assert parsed_date.month == 1
+    assert parsed_date.day == 15
+
     # RSS 표준 형식
     date_str = "Mon, 15 Jan 2024 10:30:00 GMT"
     parsed_date = _parse_pub_date(date_str)
@@ -141,41 +150,49 @@ def test_extract_blog_source():
     """블로그 출처 추출 테스트"""
     # 티스토리
     tistory_link = "https://myblog.tistory.com/123"
-    source = _extract_blog_source(tistory_link)
+    source = _extract_blog_source(tistory_link, "MyBlog", "")
     assert "티스토리" in source
-    assert "myblog" in source
 
     # 네이버 블로그
     naver_link = "https://blog.naver.com/testuser/123456"
-    source = _extract_blog_source(naver_link)
-    assert "네이버" in source or "testuser" in source
+    source = _extract_blog_source(naver_link, "TestUser", "")
+    assert "TestUser" in source or "네이버" in source
 
     # 브런치
     brunch_link = "https://brunch.co.kr/@writer123/45"
-    source = _extract_blog_source(brunch_link)
+    source = _extract_blog_source(brunch_link, "Writer123", "")
     assert "브런치" in source
 
+    # 블로거 이름이 있는 경우
+    source = _extract_blog_source("", "개발자블로그", "")
+    assert "개발자블로그" in source
+
     # 알 수 없는 블로그
-    unknown_link = ""
-    source = _extract_blog_source(unknown_link)
+    source = _extract_blog_source("", "", "")
     assert source == "블로그"
 
 
-def test_generate_summary():
-    """요약 생성 테스트"""
-    title = "파이썬 프로그래밍 기초"
-    content = "파이썬은 배우기 쉬운 프로그래밍 언어입니다. 다양한 분야에서 활용됩니다. 웹 개발, 데이터 분석, 인공지능 등에 사용됩니다."
-    description = "파이썬 학습 가이드"
+def test_remove_html_tags():
+    """HTML 태그 제거 테스트"""
+    # HTML 태그가 있는 텍스트
+    html_text = "<b>파이썬</b> 프로그래밍 <a href='#'>기초</a>"
+    cleaned = _remove_html_tags(html_text)
+    assert "<" not in cleaned
+    assert ">" not in cleaned
+    assert "파이썬" in cleaned
+    assert "프로그래밍" in cleaned
+    assert "기초" in cleaned
 
-    summary = _generate_summary(title, content, description)
+    # HTML 엔티티
+    entity_text = "&lt;파이썬&gt; &amp; 프로그래밍"
+    cleaned = _remove_html_tags(entity_text)
+    assert "<파이썬>" in cleaned
+    assert "&" in cleaned
 
-    assert summary is not None
-    assert len(summary) > 0
-    assert len(summary) <= 200
-
-    # 내용이 없는 경우
-    empty_summary = _generate_summary("제목", "", "")
-    assert "블로그 본문에서 상세 내용을 확인하세요" in empty_summary
+    # 빈 문자열
+    empty_text = ""
+    cleaned = _remove_html_tags(empty_text)
+    assert cleaned == ""
 
 
 def test_format_blog_info_text():
